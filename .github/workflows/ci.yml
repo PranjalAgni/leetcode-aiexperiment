@@ -93,7 +93,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: apps/judge-service/go.sum
+          cache-dependency-path: apps/judge-service/go.mod
+
+      - name: Tidy modules
+        working-directory: apps/judge-service
+        run: go mod tidy
 
       - name: Build
         working-directory: apps/judge-service
