@@ -1,9 +1,9 @@
 module github.com/algoarena/judge-service
 
-go 1.23
+go 1.25
 
 require (
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	go.uber.org/zap v1.27.0
 )
 
