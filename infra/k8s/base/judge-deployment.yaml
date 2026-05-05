@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: judge-service
+  namespace: judge-prod
+spec:
+  replicas: 0  # KEDA manages scaling
+  selector:
+    matchLabels:
+      app: judge-service
+  template:
+    metadata:
+      labels:
+        app: judge-service
+    spec:
+      # Judge pods MUST run on dedicated tainted nodes
+      nodeSelector:
+        role: judge
+      tolerations:
+        - key: role
+          value: judge
+          effect: NoSchedule
+      containers:
+        - name: judge-service
+          image: ECR_REGISTRY/algoarena/judge-service:latest
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: url
+            - name: PROBLEM_SERVICE_URL
+              value: 'http://problem-service.platform-prod:4003'
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: internal-api-keys
+                  key: judge-key
+            - name: NUM_WORKERS
+              value: '8'
+            - name: SANDBOX_DIR
+              value: '/tmp/judge'
+            - name: ISOLATE_BIN
+              value: '/usr/local/bin/isolate'
+          securityContext:
+            privileged: true  # Required for Linux namespaces (isolate)
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          volumeMounts:
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: judge-tmp
+              mountPath: /tmp/judge
+      volumes:
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: judge-tmp
+          emptyDir:
+            medium: Memory  # tmpfs for better performance and auto-cleanup
+---
+# KEDA ScaledObject — scale judge service based on queue depth
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: judge-service-scaler
+  namespace: judge-prod
+spec:
+  scaleTargetRef:
+    name: judge-service
+  minReplicaCount: 0    # Scale to zero when queue is empty
+  maxReplicaCount: 50   # Max 50 judge pods during peak
+  pollingInterval: 5    # Check queue every 5 seconds
+  cooldownPeriod: 60    # Wait 60s before scaling down
+  triggers:
+    - type: redis
+      metadata:
+        address: redis-service.platform-prod:6379
+        listName: 'bull:judge:wait'
+        listLength: '5'   # 1 pod per 5 queued submissions

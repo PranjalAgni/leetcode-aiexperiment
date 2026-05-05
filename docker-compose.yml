@@ -1,0 +1,98 @@
+version: '3.9'
+
+# Local development infrastructure
+# Node.js services run natively via `pnpm dev` (faster HMR)
+# Judge service must run in Docker (requires Linux namespaces)
+
+services:
+  # ─── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: algoarena-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: algoarena
+      POSTGRES_PASSWORD: algoarena_dev
+      POSTGRES_DB: algoarena
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U algoarena']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: algoarena-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Judge Service (Linux-only, must run in Docker) ──────────────────────────
+
+  judge-service:
+    build:
+      context: ./apps/judge-service
+      dockerfile: ../../infra/docker/judge-service.Dockerfile
+    container_name: algoarena-judge
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PROBLEM_SERVICE_URL=http://host.docker.internal:4003
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-dev-internal-key}
+      - NUM_WORKERS=4
+      - SANDBOX_DIR=/tmp/judge
+      - ISOLATE_BIN=/usr/local/bin/isolate
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  # ─── Optional: Bull Board (queue monitoring) ────────────────────────────────
+
+  bull-board:
+    image: ghcr.io/felixmosh/bull-board:latest
+    container_name: algoarena-bull-board
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BULL_PREFIX=bull
+    ports:
+      - '9001:3000'
+    depends_on:
+      - redis
+
+  # ─── Optional: Jaeger (distributed tracing) ─────────────────────────────────
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: algoarena-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - '16686:16686' # Jaeger UI
+      - '4317:4317'   # OTLP gRPC
+      - '4318:4318'   # OTLP HTTP
+    profiles: ['observability']
+
+volumes:
+  postgres_data:
+  redis_data:
