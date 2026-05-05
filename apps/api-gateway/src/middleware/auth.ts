@@ -41,6 +41,7 @@ function isPublicRoute(method: string, url: string): boolean {
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
   const { method, url } = request
+  if (method === 'OPTIONS') return
   if (isPublicRoute(method, url)) return
 
   // SSE connections (EventSource) cannot send custom headers — accept token as query param
