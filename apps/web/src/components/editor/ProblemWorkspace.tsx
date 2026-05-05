@@ -1,0 +1,222 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import type { ProblemWithSamples, Language, SubmissionResultEvent } from '@algoarena/shared-types'
+import { LANGUAGES, LANGUAGE_DISPLAY_NAMES, getDefaultTemplate } from '@algoarena/shared-types'
+import { CodeEditor } from './CodeEditor'
+import { ProblemDescription } from './ProblemDescription'
+import { SubmissionPanel } from './SubmissionPanel'
+import { useSession } from 'next-auth/react'
+import { api } from '@/lib/api'
+import { getVerdictLabel } from '@/lib/utils'
+import toast from 'react-hot-toast'
+
+interface Props {
+  problem: ProblemWithSamples
+}
+
+export function ProblemWorkspace({ problem }: Props) {
+  const { data: session } = useSession()
+  const [language, setLanguage] = useState<Language>('python3')
+
+  const getStarterCode = (lang: Language) =>
+    problem.starterCode?.[lang] ?? getDefaultTemplate(lang)
+
+  const [code, setCode] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`code:${problem.slug}:${language}`)
+      if (saved) return saved
+    }
+    return getStarterCode(language)
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<SubmissionResultEvent | null>(null)
+  const [activeTab, setActiveTab] = useState<'description' | 'submissions'>('description')
+
+  // Persist code to localStorage
+  useEffect(() => {
+    localStorage.setItem(`code:${problem.slug}:${language}`, code)
+  }, [code, problem.slug, language])
+
+  // Load saved code when language changes
+  const handleLanguageChange = useCallback(
+    (lang: Language) => {
+      setLanguage(lang)
+      const saved = localStorage.getItem(`code:${problem.slug}:${lang}`)
+      setCode(saved ?? getStarterCode(lang))
+      setResult(null)
+    },
+    [problem.slug]
+  )
+
+  const handleRun = useCallback(async () => {
+    if (!session?.user) {
+      toast.error('Please log in to run code')
+      return
+    }
+    setRunning(true)
+    setResult(null)
+    try {
+      const { runId } = await api.post<{ runId: string }>(
+        '/submissions/run',
+        { problemId: problem.id, language, code },
+        // @ts-expect-error — session type extension
+        { token: session.user.accessToken }
+      )
+      await pollResult(runId)
+    } catch {
+      toast.error('Failed to run code')
+    } finally {
+      setRunning(false)
+    }
+  }, [session, problem.id, language, code])
+
+  const handleSubmit = useCallback(async () => {
+    if (!session?.user) {
+      toast.error('Please log in to submit')
+      return
+    }
+    setSubmitting(true)
+    setResult(null)
+    try {
+      const { submissionId } = await api.post<{ submissionId: string }>(
+        '/submissions',
+        { problemId: problem.id, language, code },
+        // @ts-expect-error — session type extension
+        { token: session.user.accessToken }
+      )
+      await subscribeToResult(submissionId)
+    } catch {
+      toast.error('Failed to submit')
+    } finally {
+      setSubmitting(false)
+    }
+  }, [session, problem.id, language, code])
+
+  // EventSource cannot send headers — pass JWT as query param
+  const getToken = () =>
+    // @ts-expect-error — session type extension
+    (session?.user?.accessToken as string | undefined) ?? ''
+
+  const openEventStream = (id: string, onResult: (data: SubmissionResultEvent) => void) => {
+    const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000/api/v1'
+    const token = getToken()
+    const url = `${API_BASE}/submissions/${id}/events${token ? `?token=${encodeURIComponent(token)}` : ''}`
+    const es = new EventSource(url)
+
+    es.onmessage = (event) => {
+      const data = JSON.parse(event.data as string) as { type: string } & SubmissionResultEvent
+      if (data.type === 'result') {
+        onResult(data)
+        es.close()
+      }
+    }
+    es.onerror = () => es.close()
+    return es
+  }
+
+  const subscribeToResult = (submissionId: string) => {
+    return new Promise<void>((resolve) => {
+      openEventStream(submissionId, (data) => {
+        setResult(data)
+        if (data.verdict === 'accepted') {
+          toast.success('Accepted!')
+        } else {
+          toast.error(getVerdictLabel(data.verdict ?? ''))
+        }
+        resolve()
+      })
+    })
+  }
+
+  const pollResult = async (runId: string) => {
+    return new Promise<void>((resolve) => {
+      openEventStream(runId, (data) => {
+        setResult(data)
+        resolve()
+      })
+    })
+  }
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleRun()
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'Enter') {
+        e.preventDefault()
+        handleSubmit()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleRun, handleSubmit])
+
+  return (
+    <div className="flex h-[calc(100vh-56px)] overflow-hidden">
+      {/* Left panel: problem description */}
+      <div className="w-[45%] border-r flex flex-col overflow-hidden">
+        <div className="flex border-b">
+          {(['description', 'submissions'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-3 text-sm font-medium capitalize transition-colors ${
+                activeTab === tab
+                  ? 'border-b-2 border-primary text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'description' ? (
+            <ProblemDescription problem={problem} />
+          ) : (
+            <div className="p-4 text-muted-foreground text-sm">
+              {session ? 'Loading submissions...' : 'Log in to view your submissions'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right panel: editor + submission panel */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Language selector */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b bg-background">
+          <select
+            value={language}
+            onChange={(e) => handleLanguageChange(e.target.value as Language)}
+            className="text-sm bg-muted border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            data-testid="language-select"
+          >
+            {LANGUAGES.map((lang) => (
+              <option key={lang} value={lang}>
+                {LANGUAGE_DISPLAY_NAMES[lang]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Code editor */}
+        <div className="flex-1 overflow-hidden">
+          <CodeEditor language={language} value={code} onChange={setCode} />
+        </div>
+
+        {/* Submit panel */}
+        <SubmissionPanel
+          result={result}
+          running={running}
+          submitting={submitting}
+          onRun={handleRun}
+          onSubmit={handleSubmit}
+        />
+      </div>
+    </div>
+  )
+}
