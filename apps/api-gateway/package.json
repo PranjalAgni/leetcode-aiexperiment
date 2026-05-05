@@ -12,22 +12,24 @@
   "dependencies": {
     "@algoarena/logger": "workspace:*",
     "@algoarena/shared-types": "workspace:*",
-    "fastify": "^5.1.0",
-    "@fastify/helmet": "^13.0.2",
-    "@fastify/cors": "^11.0.0",
-    "@fastify/rate-limit": "^10.3.0",
-    "@fastify/http-proxy": "^11.0.0",
     "@fastify/cookie": "^11.0.2",
-    "jsonwebtoken": "^9.0.2",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/http-proxy": "^11.0.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "fastify": "^5.1.0",
     "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@algoarena/eslint-config": "workspace:^",
+    "@algoarena/tsconfig": "workspace:*",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.7.5",
+    "eslint": "^9.0.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.2",
-    "@algoarena/tsconfig": "workspace:*"
+    "vitest": "^2.1.2"
   }
 }

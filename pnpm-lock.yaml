@@ -54,6 +54,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
@@ -63,6 +66,9 @@ importers:
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.17
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -118,6 +124,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
@@ -133,6 +142,9 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.16
         version: 6.4.23
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -170,12 +182,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.17
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -213,6 +231,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
@@ -222,6 +243,9 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.16
         version: 6.4.23
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -259,12 +283,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.17
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -308,12 +338,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.17
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
@@ -354,12 +390,18 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@algoarena/eslint-config':
+        specifier: workspace:^
+        version: link:../../packages/config/eslint
       '@algoarena/tsconfig':
         specifier: workspace:*
         version: link:../../packages/config/tsconfig
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.17
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
