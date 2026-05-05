@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  user
+  admin
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum ProblemStatus {
+  draft
+  published
+  deprecated
+}
+
+enum Language {
+  python3
+  javascript
+  typescript
+  java
+  cpp17
+  go
+  rust
+  csharp
+  kotlin
+  ruby
+}
+
+enum SubmissionVerdict {
+  pending
+  running
+  accepted
+  wrong_answer
+  time_limit_exceeded
+  memory_limit_exceeded
+  runtime_error
+  compile_error
+  system_error
+}
+
+enum ContestStatus {
+  upcoming
+  ongoing
+  ended
+}
+
+enum PostType {
+  question
+  solution
+  discussion
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String?   @map("password_hash")
+  role         UserRole  @default(user)
+  displayName  String    @map("display_name")
+  bio          String?
+  location     String?
+  company      String?
+  githubUrl    String?   @map("github_url")
+  linkedinUrl  String?   @map("linkedin_url")
+  website      String?
+  rating       Int       @default(1500)
+  emailVerified Boolean  @default(false) @map("email_verified")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  oauthAccounts      OAuthAccount[]
+  submissions        Submission[]
+  contestParticipants ContestParticipant[]
+  posts              Post[]
+  comments           Comment[]
+  studyProgress      UserStudyProgress[]
+  votes              Vote[]
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  provider   String   // "google" | "github"
+  providerId String   @map("provider_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
+}
+
+// ─── Problems ────────────────────────────────────────────────────────────────
+
+model Problem {
+  id               String        @id @default(uuid())
+  number           Int           @unique
+  title            String
+  slug             String        @unique
+  difficulty       Difficulty
+  description      String
+  constraints      String
+  hints            Json          @default("[]") // string[]
+  status           ProblemStatus @default(draft)
+  acceptanceRate   Decimal       @default(0) @map("acceptance_rate") @db.Decimal(5, 2)
+  totalSubmissions Int           @default(0) @map("total_submissions")
+  totalAccepted    Int           @default(0) @map("total_accepted")
+  timeLimitMs      Int           @default(2000) @map("time_limit_ms")
+  memoryLimitMb    Int           @default(256) @map("memory_limit_mb")
+  starterCode      Json          @default("{}") @map("starter_code") // Record<Language, string>
+  judgeMetadata    Json          @default("{}") @map("judge_metadata") // { functionName, inputSchema, outputSchema }
+  createdBy        String        @map("created_by")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  testCases         TestCase[]
+  problemTags       ProblemTag[]
+  languageLimits    ProblemLanguageLimit[]
+  submissions       Submission[]
+  contestProblems   ContestProblem[]
+  posts             Post[]
+  studyPlanProblems StudyPlanProblem[]
+
+  @@index([status])
+  @@index([difficulty])
+  @@map("problems")
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  problemTags ProblemTag[]
+
+  @@map("tags")
+}
+
+model ProblemTag {
+  problemId String @map("problem_id")
+  tagId     String @map("tag_id")
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, tagId])
+  @@map("problem_tags")
+}
+
+model TestCase {
+  id             String  @id @default(uuid())
+  problemId      String  @map("problem_id")
+  input          String
+  expectedOutput String  @map("expected_output")
+  isSample       Boolean @default(false) @map("is_sample")
+  orderIndex     Int     @map("order_index")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([problemId, isSample])
+  @@map("test_cases")
+}
+
+model ProblemLanguageLimit {
+  problemId    String   @map("problem_id")
+  language     Language
+  timeLimitMs  Int      @map("time_limit_ms")
+  memoryLimitMb Int     @map("memory_limit_mb")
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, language])
+  @@map("problem_language_limits")
+}
+
+// ─── Submissions ─────────────────────────────────────────────────────────────
+
+model Submission {
+  id               String            @id @default(uuid())
+  userId           String            @map("user_id")
+  problemId        String            @map("problem_id")
+  contestId        String?           @map("contest_id")
+  language         Language
+  code             String
+  verdict          SubmissionVerdict @default(pending)
+  runtimeMs        Int?              @map("runtime_ms")
+  memoryMb         Int?              @map("memory_mb")
+  testCasesPassed  Int?              @map("test_cases_passed")
+  totalTestCases   Int?              @map("total_test_cases")
+  errorMessage     String?           @map("error_message")
+  failingTestCase  Json?             @map("failing_test_case")
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  problem Problem  @relation(fields: [problemId], references: [id])
+  contest Contest? @relation(fields: [contestId], references: [id])
+
+  @@index([userId, problemId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([problemId, verdict])
+  @@index([contestId])
+  @@map("submissions")
+}
+
+// ─── Contests ────────────────────────────────────────────────────────────────
+
+model Contest {
+  id               String        @id @default(uuid())
+  title            String
+  slug             String        @unique
+  description      String
+  startsAt         DateTime      @map("starts_at")
+  endsAt           DateTime      @map("ends_at")
+  status           ContestStatus @default(upcoming)
+  createdBy        String        @map("created_by")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  problems     ContestProblem[]
+  participants ContestParticipant[]
+  submissions  Submission[]
+
+  @@index([status, startsAt])
+  @@map("contests")
+}
+
+model ContestProblem {
+  contestId  String @map("contest_id")
+  problemId  String @map("problem_id")
+  orderIndex Int    @map("order_index")
+
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@id([contestId, problemId])
+  @@map("contest_problems")
+}
+
+model ContestParticipant {
+  contestId    String    @map("contest_id")
+  userId       String    @map("user_id")
+  ratingBefore Int       @map("rating_before")
+  ratingAfter  Int?      @map("rating_after")
+  rank         Int?
+  registeredAt DateTime  @default(now()) @map("registered_at")
+
+  contest Contest @relation(fields: [contestId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@id([contestId, userId])
+  @@map("contest_participants")
+}
+
+// ─── Discussion ──────────────────────────────────────────────────────────────
+
+model Post {
+  id        String   @id @default(uuid())
+  problemId String   @map("problem_id")
+  userId    String   @map("user_id")
+  title     String
+  body      String
+  postType  PostType @map("post_type")
+  upvotes   Int      @default(0)
+  views     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  problem  Problem   @relation(fields: [problemId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  comments Comment[]
+  votes    Vote[]
+
+  @@index([problemId, createdAt(sort: Desc)])
+  @@index([problemId, upvotes(sort: Desc)])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  parentId  String?  @map("parent_id")
+  userId    String   @map("user_id")
+  body      String
+  upvotes   Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+  user     User      @relation(fields: [userId], references: [id])
+  votes    Vote[]
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String?  @map("post_id")
+  commentId String?  @map("comment_id")
+  value     Int      // 1 or -1
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@map("votes")
+}
+
+// ─── Study Plans ─────────────────────────────────────────────────────────────
+
+model StudyPlan {
+  id             String   @id @default(uuid())
+  title          String
+  slug           String   @unique
+  description    String
+  difficultyLevel String  @map("difficulty_level")
+  durationDays   Int      @map("duration_days")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  problems      StudyPlanProblem[]
+  userProgress  UserStudyProgress[]
+
+  @@map("study_plans")
+}
+
+model StudyPlanProblem {
+  planId      String @map("plan_id")
+  problemId   String @map("problem_id")
+  dayNumber   Int    @map("day_number")
+  orderIndex  Int    @map("order_index")
+
+  plan    StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  problem Problem   @relation(fields: [problemId], references: [id])
+
+  @@id([planId, problemId])
+  @@map("study_plan_problems")
+}
+
+model UserStudyProgress {
+  userId      String    @map("user_id")
+  planId      String    @map("plan_id")
+  problemId   String    @map("problem_id")
+  completedAt DateTime  @default(now()) @map("completed_at")
+
+  user    User      @relation(fields: [userId], references: [id])
+  plan    StudyPlan @relation(fields: [planId], references: [id])
+
+  @@id([userId, planId, problemId])
+  @@map("user_study_progress")
+}
