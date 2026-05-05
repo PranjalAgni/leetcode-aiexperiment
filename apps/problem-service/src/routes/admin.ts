@@ -79,7 +79,7 @@ export async function adminProblemRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'VALIDATION_ERROR' })
     }
 
-    const { tags, ...updateData } = body.data
+    const { tags: _tags, ...updateData } = body.data
     const problem = await prisma.problem.update({
       where: { id },
       data: {
