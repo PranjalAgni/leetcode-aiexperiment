@@ -27,7 +27,7 @@ export function startDevJudge() {
   const worker = new Worker<JudgeJobData>(
     QUEUE_NAMES.JUDGE,
     async (job) => {
-      const { submissionId, language, code, timeLimitMs, memoryLimitMb, problemId, isRun, customInput } = job.data
+      const { submissionId, language, code, timeLimitMs, memoryLimitMb: _memoryLimitMb, problemId, isRun, customInput } = job.data
       logger.info({ submissionId, language }, '[dev-judge] processing job')
 
       // Fetch judge metadata from DB (same data that generated the starter code)
