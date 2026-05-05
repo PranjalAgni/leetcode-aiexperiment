@@ -1,11 +1,11 @@
-import type { NextAuthOptions, Provider } from 'next-auth'
+import type { NextAuthOptions, User } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GithubProvider from 'next-auth/providers/github'
 import GoogleProvider from 'next-auth/providers/google'
 
 const AUTH_SERVICE = process.env['AUTH_SERVICE_URL'] ?? 'http://localhost:4001'
 
-const providers: Provider[] = [
+const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
     name: 'credentials',
     credentials: {
@@ -22,7 +22,7 @@ const providers: Provider[] = [
         })
         if (!res.ok) return null
         const data = (await res.json()) as { accessToken: string }
-        return { id: 'user', accessToken: data.accessToken } as Record<string, string>
+        return { id: 'user', accessToken: data.accessToken } as User & { accessToken: string }
       } catch {
         return null
       }
