@@ -92,11 +92,11 @@ export function ProblemWorkspace({ problem }: Props) {
     if (!token) return
     setSubmissionsLoading(true)
     try {
-      const data = await api.get<{ submissions: Submission[] }>(
+      const data = await api.get<{ data: Submission[] }>(
         `/submissions?problemId=${problem.id}&limit=20`,
         { token }
       )
-      setSubmissions(data.submissions)
+      setSubmissions(data.data ?? [])
     } catch {
       // silently fail — user may not have any submissions
     } finally {
