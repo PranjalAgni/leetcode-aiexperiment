@@ -93,9 +93,11 @@ export function startDevJudge() {
 
         if (result.exitCode !== 0) {
           const rawErr = result.stderr
-          verdict = rawErr.includes('SyntaxError') || rawErr.includes('error:')
-            ? 'compile_error'
-            : 'runtime_error'
+          if (rawErr.includes('SyntaxError') || rawErr.includes('error:')) {
+            verdict = 'compile_error'
+          } else {
+            verdict = 'runtime_error'
+          }
           errorMessage = cleanErrorMessage(rawErr, language)
           failingTestCase = { input: tc.input, expectedOutput: tc.expectedOutput, actualOutput: result.stdout }
           break

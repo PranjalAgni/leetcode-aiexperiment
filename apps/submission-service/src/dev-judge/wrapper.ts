@@ -43,6 +43,9 @@ function wrapPython(code: string, meta: JudgeMeta): string {
 import sys
 
 def _driver():
+    if not hasattr(Solution, '${meta.functionName}'):
+        print("Your solution must define a method named '${meta.functionName}' inside class Solution.", file=sys.stderr)
+        sys.exit(1)
     try:
 ${inputParsers.join('\n')}
         result = ${callExpr}
@@ -85,6 +88,10 @@ function wrapJavaScript(code: string, meta: JudgeMeta): string {
 
 const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\\n');
 (function main() {
+  if (typeof ${meta.functionName} !== 'function') {
+    process.stderr.write("Your solution must define a function named '${meta.functionName}'.\\nMake sure you haven't renamed it.\\n");
+    process.exit(1);
+  }
 ${inputParsers.join('\n')}
   const result = ${meta.functionName}(${args});
   ${printer}
