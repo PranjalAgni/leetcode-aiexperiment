@@ -92,11 +92,11 @@ export function startDevJudge() {
         }
 
         if (result.exitCode !== 0) {
-          // Distinguish compile error (caught in runner, exitCode=1, no stdout) vs runtime error
-          verdict = result.stderr.includes('error:') || result.stderr.includes('SyntaxError')
+          const rawErr = result.stderr
+          verdict = rawErr.includes('SyntaxError') || rawErr.includes('error:')
             ? 'compile_error'
             : 'runtime_error'
-          errorMessage = result.stderr.slice(0, 2000)
+          errorMessage = cleanErrorMessage(rawErr, language)
           failingTestCase = { input: tc.input, expectedOutput: tc.expectedOutput, actualOutput: result.stdout }
           break
         }
@@ -164,6 +164,29 @@ export function startDevJudge() {
 
   logger.info('[dev-judge] worker started (dev mode — no sandbox isolation)')
   return worker
+}
+
+function cleanErrorMessage(stderr: string, language: string): string {
+  const lines = stderr.split('\n')
+
+  if (language === 'javascript' || language === 'typescript') {
+    // Keep only lines that reference user code (solution.js/solution.ts) or the error type line
+    // Strip Node.js internals (node:internal/*, at Object.<anonymous>, at Module.*, etc.)
+    const useful = lines.filter(l =>
+      !l.startsWith('    at ') ||
+      l.includes('solution.js') ||
+      l.includes('solution.ts')
+    )
+    // Further strip the temp directory path from filenames
+    const cleaned = useful
+      .map(l => l.replace(/\/[^\s]*algoarena-[a-f0-9-]+\//g, ''))
+      .join('\n')
+      .trim()
+    return cleaned.slice(0, 1000)
+  }
+
+  // For other languages just trim excess whitespace and cap length
+  return stderr.trim().slice(0, 1000)
 }
 
 async function publishResult(submissionId: string, payload: Record<string, unknown>) {
