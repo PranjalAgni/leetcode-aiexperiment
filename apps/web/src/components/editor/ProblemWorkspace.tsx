@@ -162,6 +162,7 @@ export function ProblemWorkspace({ problem }: Props) {
     }
     setSubmitting(true)
     setResult(null)
+    setActiveTab('submissions')
     try {
       const { submissionId } = await api.post<{ submissionId: string }>(
         '/submissions',
