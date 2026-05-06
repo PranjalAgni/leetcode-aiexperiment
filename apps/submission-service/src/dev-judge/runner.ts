@@ -53,8 +53,11 @@ export async function runCode(opts: RunOptions): Promise<RunResult> {
           timeout: 20000,
         })
       } catch (err: unknown) {
-        const e = err as { stdout?: string; stderr?: string }
-        return { stdout: '', stderr: e.stderr ?? e.stdout ?? String(err), exitCode: 1, timedOut: false, runtimeMs: 0 }
+        const e = err as { stdout?: string; stderr?: string; code?: string; cmd?: string }
+        const msg = e.code === 'ENOENT'
+          ? `Runtime not available: '${cfg.compile![0]}' is not installed on this server.`
+          : (e.stderr ?? e.stdout ?? String(err))
+        return { stdout: '', stderr: msg, exitCode: 1, timedOut: false, runtimeMs: 0 }
       }
     }
 
@@ -93,9 +96,12 @@ function runWithStdin(cmd: string, args: string[], cwd: string, stdin: string, t
       })
     })
 
-    child.on('error', (err) => {
+    child.on('error', (err: NodeJS.ErrnoException) => {
       clearTimeout(timer)
-      resolve({ stdout: '', stderr: err.message, exitCode: 1, timedOut: false, runtimeMs: Date.now() - start })
+      const msg = err.code === 'ENOENT'
+        ? `Runtime not available: '${cmd}' is not installed on this server.`
+        : err.message
+      resolve({ stdout: '', stderr: msg, exitCode: 1, timedOut: false, runtimeMs: Date.now() - start })
     })
 
     // Write stdin and close it so the process knows EOF
