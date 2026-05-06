@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function ProblemWorkspace({ problem }: Props) {
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const [language, setLanguage] = useState<Language>('python3')
 
   const getStarterCode = (lang: Language) =>
@@ -51,7 +51,10 @@ export function ProblemWorkspace({ problem }: Props) {
   )
 
   const handleRun = useCallback(async () => {
-    if (!session?.user) {
+    if (sessionStatus === 'loading') return
+    // @ts-expect-error — session type extension
+    const token = session?.user?.accessToken as string | undefined
+    if (!token) {
       toast.error('Please log in to run code')
       return
     }
@@ -61,8 +64,7 @@ export function ProblemWorkspace({ problem }: Props) {
       const { runId } = await api.post<{ runId: string }>(
         '/submissions/run',
         { problemId: problem.id, language, code },
-        // @ts-expect-error — session type extension
-        { token: session.user.accessToken }
+        { token }
       )
       await pollResult(runId)
     } catch {
@@ -73,7 +75,10 @@ export function ProblemWorkspace({ problem }: Props) {
   }, [session, problem.id, language, code])
 
   const handleSubmit = useCallback(async () => {
-    if (!session?.user) {
+    if (sessionStatus === 'loading') return
+    // @ts-expect-error — session type extension
+    const token = session?.user?.accessToken as string | undefined
+    if (!token) {
       toast.error('Please log in to submit')
       return
     }
@@ -83,8 +88,7 @@ export function ProblemWorkspace({ problem }: Props) {
       const { submissionId } = await api.post<{ submissionId: string }>(
         '/submissions',
         { problemId: problem.id, language, code },
-        // @ts-expect-error — session type extension
-        { token: session.user.accessToken }
+        { token }
       )
       await subscribeToResult(submissionId)
     } catch {
