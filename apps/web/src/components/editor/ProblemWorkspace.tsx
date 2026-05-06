@@ -19,6 +19,7 @@ interface Submission {
   runtimeMs: number | null
   memoryMb: number | null
   createdAt: string
+  code: string
 }
 
 interface Props {
@@ -45,6 +46,7 @@ export function ProblemWorkspace({ problem }: Props) {
   const [activeTab, setActiveTab] = useState<'description' | 'submissions'>('description')
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   // Persist code to localStorage
   useEffect(() => {
@@ -162,7 +164,6 @@ export function ProblemWorkspace({ problem }: Props) {
     }
     setSubmitting(true)
     setResult(null)
-    setActiveTab('submissions')
     try {
       const { submissionId } = await api.post<{ submissionId: string }>(
         '/submissions',
@@ -170,7 +171,8 @@ export function ProblemWorkspace({ problem }: Props) {
         { token }
       )
       await subscribeToResult(submissionId)
-      fetchSubmissions()
+      await fetchSubmissions()
+      setActiveTab('submissions')
     } catch {
       toast.error('Failed to submit')
     } finally {
@@ -227,20 +229,32 @@ export function ProblemWorkspace({ problem }: Props) {
               ) : (
                 <div className="space-y-2">
                   {submissions.map((s) => (
-                    <div key={s.id} className="rounded-lg border p-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className={cn('font-semibold', getVerdictColor(s.verdict))}>
-                          {getVerdictLabel(s.verdict)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(s.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
-                        <span>{s.language}</span>
-                        {s.runtimeMs != null && <span>{formatRuntime(s.runtimeMs)}</span>}
-                        {s.memoryMb != null && <span>{formatMemory(s.memoryMb)}</span>}
-                      </div>
+                    <div key={s.id} className="rounded-lg border text-sm overflow-hidden">
+                      <button
+                        className="w-full text-left p-3 hover:bg-muted/50 transition-colors"
+                        onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={cn('font-semibold', getVerdictColor(s.verdict))}>
+                            {getVerdictLabel(s.verdict)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(s.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
+                          <span>{s.language}</span>
+                          {s.runtimeMs != null && <span>{formatRuntime(s.runtimeMs)}</span>}
+                          {s.memoryMb != null && <span>{formatMemory(s.memoryMb)}</span>}
+                        </div>
+                      </button>
+                      {expandedId === s.id && (
+                        <div className="border-t bg-muted/20">
+                          <pre className="p-3 text-xs overflow-x-auto whitespace-pre font-mono leading-relaxed">
+                            {s.code}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

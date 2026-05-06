@@ -262,6 +262,7 @@ export async function submissionRoutes(fastify: FastifyInstance) {
           runtimeMs: true,
           memoryMb: true,
           createdAt: true,
+          code: true,
           problem: { select: { slug: true, title: true } },
         },
         orderBy: { createdAt: 'desc' },
