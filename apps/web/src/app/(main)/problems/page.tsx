@@ -13,7 +13,7 @@ interface Props {
 export default async function ProblemsPage({ searchParams }: Props) {
   const params = await searchParams
   const filters: ProblemFilters = {
-    difficulty: params['difficulty'] as ProblemFilters['difficulty'],
+    difficulty: typeof params['difficulty'] === 'string' ? params['difficulty'].split(',') as ProblemFilters['difficulty'] : undefined,
     tags: typeof params['tags'] === 'string' ? params['tags'].split(',') : undefined,
     search: typeof params['search'] === 'string' ? params['search'] : undefined,
     page: typeof params['page'] === 'string' ? parseInt(params['page']) : 1,
