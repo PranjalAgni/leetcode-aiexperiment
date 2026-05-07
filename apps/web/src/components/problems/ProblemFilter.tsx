@@ -27,10 +27,8 @@ export function ProblemFilter({ filters, onFiltersChange }: Props) {
 
   const toggleDifficulty = (difficulty: Difficulty) => {
     const current = filters.difficulty ?? []
-    const next = current.includes(difficulty)
-      ? current.filter((d) => d !== difficulty)
-      : [...current, difficulty]
-    onFiltersChange({ difficulty: next.length ? next : undefined })
+    const isSelected = current.length === 1 && current[0] === difficulty
+    onFiltersChange({ difficulty: isSelected ? undefined : [difficulty] })
   }
 
   const clearFilters = () => {

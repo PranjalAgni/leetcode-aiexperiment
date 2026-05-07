@@ -31,7 +31,8 @@ export function ProblemList({ initialData, initialFilters }: Props) {
       return api.get<PaginatedResponse<ProblemListItem>>(`/problems?${params}`)
     },
     initialData,
-    staleTime: 30000,
+    initialDataUpdatedAt: 0,
+    staleTime: 0,
   })
 
   const updateFilters = useCallback(
