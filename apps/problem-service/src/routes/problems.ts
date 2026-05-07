@@ -4,7 +4,7 @@ import { prisma } from '@algoarena/db'
 import { getCache, setCache } from '../services/cache'
 
 const ListQuerySchema = z.object({
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+  difficulty: z.string().optional(), // comma-separated: easy,medium,hard
   tags: z.string().optional(), // comma-separated tag slugs
   status: z.enum(['not_attempted', 'attempted', 'solved']).optional(),
   search: z.string().max(100).optional(),
@@ -24,9 +24,11 @@ export async function problemRoutes(fastify: FastifyInstance) {
     const cached = await getCache(cacheKey)
     if (cached) return reply.send(cached)
 
+    const difficultyList = difficulty ? difficulty.split(',').filter(Boolean) : []
     const where: Record<string, unknown> = {
       status: 'published',
-      ...(difficulty && { difficulty }),
+      ...(difficultyList.length === 1 && { difficulty: difficultyList[0] }),
+      ...(difficultyList.length > 1 && { difficulty: { in: difficultyList } }),
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' } },
